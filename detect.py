@@ -39,7 +39,15 @@ def handle_request():
     global source
     source = savepath
     detect(source)# yolov7으로 ls한후에 사용해야 할 듯!
-    return "Image Uploaded Successfully"
+
+    responsebody = {
+    'result' : {
+        'url' : 'ang',
+        'response-value' : 'gimoring'
+    }
+}
+    # return "Image Uploaded Successfully"
+    return responsebody
 ####################################
 
 parser = argparse.ArgumentParser()

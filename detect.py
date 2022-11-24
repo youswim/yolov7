@@ -16,6 +16,7 @@ from utils.torch_utils import select_device, load_classifier, time_synchronized,
 
 ######Flask 서버를 위한 코드########
 from flask import Flask
+from flask import send_file
 import werkzeug
 from flask_ngrok2 import run_with_ngrok
 from flask import request, Response, jsonify, render_template
@@ -27,6 +28,16 @@ run_with_ngrok(app=app, auth_token='2HgnZng3yM5ovJYPZ8c6aE0SgBX_3YYboKmpBGT5EeCA
 @app.route("/")
 def home():
     return "<h1>GFG is great platform to learn</h1>"
+
+@app.route('/get-image', methods=['GET'])
+def search():
+    global save_dir
+    args = request.args
+    sourcename = args.get('source')
+    savepath=os.path.join(os.getcwd(), str(save_dir), sourcename)
+    print('savepath in search : ' + savepath)
+    return send_file(savepath, mimetype='image/jpeg')
+
 
 @app.route('/uploader', methods=['GET', 'POST'])
 def handle_request():

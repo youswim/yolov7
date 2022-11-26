@@ -48,13 +48,15 @@ def handle_request():
     imagefile.save(savepath)
     print('savepath : ' + savepath)
     global source
+    global word
+    word=''
     source = savepath
     detect(source)# yolov7으로 ls한후에 사용해야 할 듯!
 
     responsebody = {
     'result' : {
-        'url' : 'ang',
-        'response-value' : 'gimoring'
+        'image-name': 'get-image?source='+filename,
+        'inferenced-chractors':word
     }
 }
     # return "Image Uploaded Successfully"
@@ -82,6 +84,7 @@ parser.add_argument('--exist-ok', action='store_true', help='existing project/na
 parser.add_argument('--no-trace', action='store_true', help='don`t trace model')
 # weights, conf_thre, --img-size --source 옵션만 사용했음
 opt = parser.parse_args()
+word = ''
 print(opt)
 #check_requirements(exclude=('pycocotools', 'thop'))
 
@@ -147,6 +150,7 @@ def detect(soruce):
     global model
     global stride
     global classify
+    global word
     view_img=False
 
     # Set Dataloader
@@ -238,7 +242,6 @@ def detect(soruce):
             # 리스트의 각 칸이 [class, x좌표]의 형태일 때 x좌표를 기준으로 정렬   
             sorted_cls = sorted(classes, key=lambda x : x[1])
             
-            word = ''
             number, upper = False, False
             
             for braille in sorted_cls:

@@ -115,6 +115,22 @@ if classify:
     modelc.load_state_dict(torch.load('weights/resnet101.pt', map_location=device)['model']).to(device).eval()
 # 여기에 서버에서 얻은 이미지 넣는 로직 넣으면 될듯?
 
+random.seed(1)
+
+def convert(cls, number, upper):
+    if not upper and not number:
+        return chr(cls+97)
+    elif upper:
+        return chr(cls+65)
+    else:
+        if 0 <= cls < 9:
+            return chr(cls+49)
+        elif cls == 10:
+            return '0'
+        else:
+            return 'Error'
+
+
 def detect(soruce):
     print(source)
     global weights
@@ -132,6 +148,7 @@ def detect(soruce):
     global stride
     global classify
     view_img=False
+
     # Set Dataloader
     vid_path, vid_writer = None, None
     if webcam:
@@ -152,6 +169,7 @@ def detect(soruce):
     old_img_b = 1
 
     t0 = time.time()
+    startTime = 0
     for path, img, im0s, vid_cap in dataset:
         img = torch.from_numpy(img).to(device)
         img = img.half() if half else img.float()  # uint8 to fp16/32
@@ -169,8 +187,7 @@ def detect(soruce):
 
         # Inference
         t1 = time_synchronized()
-        with torch.no_grad():   # Calculating gradients would cause a GPU memory leak
-            pred = model(img, augment=opt.augment)[0]
+        pred = model(img, augment=opt.augment)[0]
         t2 = time_synchronized()
 
         # Apply NMS
@@ -192,6 +209,8 @@ def detect(soruce):
             save_path = str(save_dir / p.name)  # img.jpg
             txt_path = str(save_dir / 'labels' / p.stem) + ('' if dataset.mode == 'image' else f'_{frame}')  # img.txt
             gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
+            
+            classes = []
             if len(det):
                 # Rescale boxes from img_size to im0 size
                 det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0.shape).round()
@@ -212,20 +231,51 @@ def detect(soruce):
                     if save_img or view_img:  # Add bbox to image
                         label = f'{names[int(cls)]} {conf:.2f}'
                         plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=1)
+                    
+                    # 각 개체별 class와 왼쪽 x 좌표를 insert    
+                    classes.append([cls, xyxy[0]])
+                 
+            # 리스트의 각 칸이 [class, x좌표]의 형태일 때 x좌표를 기준으로 정렬   
+            sorted_cls = sorted(classes, key=lambda x : x[1])
+            
+            word = ''
+            number, upper = False, False
+            
+            for braille in sorted_cls:
+                cls = braille[0]
+                if cls == 26:
+                    number = True
+                elif cls == 27:
+                    upper = True
+                else:
+                    word += convert(cls, number, upper)
+                    number, upper = False, False
+            print(word)
 
             # Print time (inference + NMS)
             print(f'{s}Done. ({(1E3 * (t2 - t1)):.1f}ms) Inference, ({(1E3 * (t3 - t2)):.1f}ms) NMS')
 
             # Stream results
+            # @prams p : 파일 주소
+            # @prams s : 검출된 물체 이름
+            if dataset.mode != 'image':
+                currentTime = time.time()
+
+                fps = 1/(currentTime - startTime)
+                startTime = currentTime
+
+                cv2.putText(im0, "FPS: " + str(int(fps)), (20, 70), cv2.FONT_HERSHEY_PLAIN, 2, (0,255,0),2)
             if view_img:
                 cv2.imshow(str(p), im0)
                 cv2.waitKey(1)  # 1 millisecond
 
             # Save results (image with detections)
+            # 파일로 저장
             if save_img:
+                # 이미지인 경우
                 if dataset.mode == 'image':
                     cv2.imwrite(save_path, im0)
-                    print(f" The image with the result is saved in: {save_path}")
+                # print(f" The image with the result is saved in: {save_path}")
                 else:  # 'video' or 'stream'
                     if vid_path != save_path:  # new video
                         vid_path = save_path
@@ -242,6 +292,7 @@ def detect(soruce):
                     vid_writer.write(im0)
 
     if save_txt or save_img:
+        print(f" The output with the result is saved in: {save_path}")
         s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
         #print(f"Results saved to {save_dir}{s}")
 
@@ -256,6 +307,3 @@ if __name__ == '__main__':
                 strip_optimizer(opt.weights)
         else:
             app.run()
-
-
-
